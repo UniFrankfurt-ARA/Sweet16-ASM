@@ -170,6 +170,41 @@ body {
 .logo-link:hover .logo-fias { height: 114px; }
 .logo-link:hover .logo-goethe { height: 114px; }
 
+/* Cross-links to RISC / FULL / EXTENDED published demos */
+.variant-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  padding: 0.4rem 1rem;
+  background: var(--accent-muted, rgba(59, 130, 246, 0.08));
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.875rem;
+}
+.variant-nav-label {
+  color: var(--text-muted, #64748b);
+  font-weight: 500;
+}
+.variant-nav-here {
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.04em;
+  margin-right: 0.25rem;
+}
+.variant-nav-link {
+  font-weight: 600;
+  color: var(--accent, #2563eb);
+  text-decoration: none;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm, 4px);
+  transition: background var(--transition), color var(--transition);
+}
+.variant-nav-link:hover {
+  background: var(--bg-card, #fff);
+  text-decoration: underline;
+}
+
 .app-title {
   margin: 0;
   font-size: 1.5rem;

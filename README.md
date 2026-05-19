@@ -1,57 +1,76 @@
-# Sweeter 16: A Web-Based ASM Tool for 16-Bit RISC Programs
+# Sweet16-ASM — SWEET16 Simulator (RISC Instruction Set)
 
-This repository contains the source code for **Sweeter 16**, a browser-based assembly tool developed for the **ARA lectures at Goethe University**.
+**This project — RISC (reduced instruction set):** [https://unifrankfurt-ara.github.io/Sweet16-ASM/](https://unifrankfurt-ara.github.io/Sweet16-ASM/)
 
-The tool is designed to support working with **16-bit RISC assembly programs** in a simple and practical way, directly in the browser, without requiring any installation. It helps users write assembly code, process it efficiently, and generate output that can be used in later stages such as testing, simulation, or machine-code style conversion.
+**Also available:**
 
-## Purpose of the Tool
+- **FULL** instruction set (complete Sweet-16, including the rest beyond RISC): [https://unifrankfurt-ara.github.io/Sweet16_Full_Instruction_set_Assembler/](https://unifrankfurt-ara.github.io/Sweet16_Full_Instruction_set_Assembler/)
+- **EXTENDED** (full ISA + MUL, DIV, PSH/POP-style extras and more): [https://unifrankfurt-ara.github.io/Sweeter16_ExtendedPlus/](https://unifrankfurt-ara.github.io/Sweeter16_ExtendedPlus/)
 
-Sweeter 16 provides a lightweight web interface for handling assembly code in a fast and repeatable workflow. It is especially useful in teaching and learning environments where students need a convenient way to experiment with 16-bit RISC assembly programs.
+Use **RISC** here for the reduced teaching ISA. Switch to **FULL** or **EXTENDED** if you need more instructions.
 
-## Main Features
+---
 
-- Web-based ASM tool with no installation required
-- Designed for **16-bit RISC assembly**
-- Simple and clean interface for writing and editing code
-- Supports quick iteration from source code to generated output
-- Useful for preparing input for simulators, testing, or further processing
-- Maintained in a Git repository so improvements and updates are easy to track
+## About this project (Sweet16-ASM — RISC)
 
-## Typical Workflow
+**Sweet16-ASM** is a browser-based assembler and step-by-step simulator for the **reduced SWEET16 instruction set** used in ARA teaching at Goethe University. No installation: open the demo link, paste assembly, preprocess `#DEF` aliases, assemble, and run instruction by instruction.
 
-1. Write or paste a 16-bit RISC assembly program into the tool
-2. Process or convert the code into the required output format
-3. Copy or export the generated result
-4. Use the result in the next step, such as simulation, testing, or analysis
+### Reduced ISA highlights
 
-## Why This Tool Exists
+- Logic: `NOT`, `XOR`, `OR`, `AND`
+- Arithmetic via carry: `ADC`, `SBB` (no plain `ADD`/`SUB` in this list)
+- Shifts / rotates: `ROL`, `ROR` (in-place style after normalization)
+- Loads: `LDL`, `LDH`, `LDLO`/`LDHI`
+- Memory: `STO [Rs], Rt` → internal `STR`; `LDD` with pointer registers (constant `R0`/`R1` addressing supported)
+- Control: `JZ`, `JC`, `JNZ`, `JNC`, `JS`, `JMP`, `BRA`, `HLT`
+- **R0 = 0** and **R1 = 1** are treated as constant in the simulator (writes are ignored for those registers)
 
-When working with assembly programs, even small changes often require repeated manual conversion or preparation steps. This can become time-consuming and error-prone. Sweeter 16 was created to make the development loop smoother and more efficient:
+Machine-code column shows **16-bit hex** for encodable instructions; unmapped ops show **`NONE`** (reserved for future definition with co-instructors).
 
-**write ASM → generate usable output → continue testing/workflow**
+Reference: `instr_set_reduced` (see also full spec in the Full project’s `docs/instr_set_full.tex` for comparison).
 
-This is particularly valuable in lecture and lab settings, where fast feedback and ease of use are important.
+### Main features
 
-## Repository Contents
+- Web UI: ASM editor, alias preprocessor (`#DEF`), assemble, step/run
+- Registers R0–R7, flags (C, Z, N, V), user memory, program memory view with **hex** column
+- Sample programs, instruction tab, user manual (EN/DE)
+- Includes `verify.s16`-style reduced test programs
 
-This repository includes:
+### Quick start (local)
 
-- Frontend source code for the browser-based tool
-- The logic needed to process and handle assembly input
-- Files required to maintain and extend the interface over time
-- Full development history through Git commits
+```bash
+cd Sweet16-ASM
+python3 -m http.server 8080
+```
 
-## Feedback and Contributions
+Open [http://localhost:8080/index.html](http://localhost:8080/index.html).
 
-Suggestions, bug reports, and improvements are welcome.  
-If you find an issue or have an idea for making the tool better, feel free to open an issue or submit a pull request.
+Or use the published demo: [https://unifrankfurt-ara.github.io/Sweet16-ASM/](https://unifrankfurt-ara.github.io/Sweet16-ASM/)
 
-## Notes
+### Typical workflow
 
-- The Git commit history serves as the change log
-- If a `LICENSE` file is included in this repository, it defines the licensing terms
+1. Write or paste ASM (optional `#DEF` aliases, `--` / `;` comments).
+2. **Convert** — resolve aliases, assemble to internal program.
+3. **Run Next** / **Run All** — observe registers, flags, memory, and machine code.
+4. Copy hex export when you need words for external tools (only `0x….` lines; `NONE` is skipped on copy).
 
-## Author
+### Project structure
+
+| File | Role |
+|------|------|
+| `index.html` | Main UI |
+| `AliasResolver.js` | `#DEF` and comment preprocessing |
+| `assembler.js` | Parse / reduced ISA |
+| `simulator.js` | Execution + memory display |
+| `script.js` | UI wiring, tabs, export |
+| `verify.s16` | Reduced ISA test program |
+| `Sample_*.js`, `i18n/` | Samples and translations |
+
+### Feedback and contributions
+
+Issues and pull requests are welcome. Please note which of the three projects your change targets.
+
+### Author
 
 **Dr. Gautam Dange**  
 FIAS / Goethe University Frankfurt  
