@@ -1,7 +1,7 @@
 /* German translations */
 (function(global) {
   global.I18N_DE = {
-    app: { title: "SWEET16 Prozessorsimulator" },
+    app: { title: "SWEET16 Prozessorsimulator — Reduzierter Befehlssatz" },
     tab: {
       originalCode: "Originalcode",
       dealiasCode: "De-Alias-Code",

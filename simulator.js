@@ -578,7 +578,12 @@ function buildProgramDisplayHtml() {
         const op = instruction?.op || '';
         const line = `${op}${argsHex ? ` ${argsHex}` : ''}${argsDec ? ` (${argsDec})` : ''}`;
         const encodedWord = encodeInstructionWord(i, op, args);
-        const machineCode = encodedWord == null ? "--" : toHexWord(encodedWord);
+        const machineCode =
+            typeof window.formatSweet16MachineCode === "function"
+                ? window.formatSweet16MachineCode(encodedWord)
+                : (encodedWord == null
+                    ? (window.sweet16NoMachineCode || "NONE")
+                    : toHexWord(encodedWord));
         const isIp = (i === instructionPointer);
         const addressCell = `${address}${isIp ? " [IP]" : ""}`;
         lines.push(

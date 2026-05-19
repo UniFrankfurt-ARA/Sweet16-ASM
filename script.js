@@ -432,7 +432,7 @@ function encodeProgramToHex(program) {
           w = 0b11111 << 11;
           break;
         default:
-          out.push(`# ${op} (unsupported for hex)`);
+          out.push(window.sweet16NoMachineCode || "NONE");
           continue;
       }
       out.push(toHex(w));
@@ -686,7 +686,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const machineCells = Array.from(document.querySelectorAll("#InMemoryProgram .memory-program-machine"));
     const codes = machineCells
       .map(el => (el.textContent || "").trim())
-      .filter(code => code && code !== "--");
+      .filter(code => code && code !== "--" && code !== "NONE" && /^0x/i.test(code));
     if (codes.length === 0) return "";
     return ["v2.0 raw", ...codes].join("\n");
   }

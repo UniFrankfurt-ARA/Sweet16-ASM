@@ -1,7 +1,7 @@
 /* English translations */
 (function(global) {
   global.I18N_EN = {
-    app: { title: "SWEET16 Processor Simulator" },
+    app: { title: "SWEET16 Processor Simulator — Reduced Instruction Set" },
     tab: {
       originalCode: "Original Code",
       dealiasCode: "De-alias Code",
