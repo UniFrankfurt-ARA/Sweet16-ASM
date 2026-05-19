@@ -135,6 +135,13 @@
 
         <div class="user-memory-card">
           <h3 class="card-title" data-i18n="card.userMemory">Data Memory</h3>
+          <div class="user-memory-input">
+            <label for="dynamicMemoryContentsForUser">Address:Value (hex)</label>
+            <div class="user-memory-entry-row">
+              <input type="text" id="dynamicMemoryContentsForUser" placeholder="" data-i18n-placeholder="placeholder.memoryInput" spellcheck="false">
+              <button type="button" class="btn btn-secondary" id="addMemoryContent" data-i18n="btn.set">Set</button>
+            </div>
+          </div>
           <div class="data-memory-layout">
             <div id="dynamicmemorydisplay" class="dynamic-memory-display"></div>
             <div class="data-memory-controls">
@@ -142,11 +149,6 @@
               <div class="memory-import-block">
                 <button type="button" class="btn btn-ghost" id="importMemoryBtn" data-i18n="btn.importMemory">Import Memory</button>
                 <button type="button" class="btn btn-ghost" id="exportMemoryBtn" data-i18n="btn.exportMemory">Export Memory</button>
-              </div>
-              <div class="user-memory-input">
-                <label for="dynamicMemoryContentsForUser">Address:Value (hex)</label>
-                <input type="text" id="dynamicMemoryContentsForUser" placeholder="" data-i18n-placeholder="placeholder.memoryInput" spellcheck="false">
-                <button type="button" class="btn btn-secondary" id="addMemoryContent" data-i18n="btn.set">Set</button>
               </div>
             </div>
           </div>
@@ -196,6 +198,9 @@
         }
         var mainResizeHandle = document.getElementById("mainResizeHandle");
         if (mainResizeHandle && leftPanel) {
+          var defaultLeftWidth = Math.round(window.innerWidth * 0.25);
+          var clampedDefaultLeftWidth = Math.max(260, Math.min(window.innerWidth * 0.6, defaultLeftWidth));
+          leftPanel.style.width = clampedDefaultLeftWidth + "px";
           var startX = 0, startW = 0;
           mainResizeHandle.addEventListener("mousedown", function(e) {
             e.preventDefault();
@@ -221,6 +226,7 @@
         var resizeHandle = document.getElementById("viewerResizeHandle");
         var bottomSection = document.getElementById("viewerBottomSection");
         if (resizeHandle && bottomSection) {
+          var rightPanel = document.querySelector(".right-panel");
           var simStatus = bottomSection.querySelector(".simulator-status");
           var developerDetails = bottomSection.querySelector(".developer-details");
           function getBottomSectionMinHeight() {
@@ -232,12 +238,29 @@
             var buffer = 12; // keep small safety margin
             return statusH + developerH + registerMin + userMemoryMin + gaps + buffer;
           }
+          function applyDefaultHorizontalSplit() {
+            if (!rightPanel) return;
+            var header = rightPanel.querySelector(".viewer-header");
+            var programArea = rightPanel.querySelector(".viewer-program-area");
+            if (!header || !programArea) return;
+            var styles = window.getComputedStyle(rightPanel);
+            var gapPx = parseFloat(styles.rowGap || styles.gap || "0") || 0;
+            // remaining vertical space shared by program area and bottom section
+            var available = rightPanel.clientHeight - header.offsetHeight - resizeHandle.offsetHeight - (3 * gapPx);
+            if (available <= 0) return;
+            var targetBottom = Math.round(available * 0.5);
+            var minH = getBottomSectionMinHeight();
+            var maxH = Math.min(window.innerHeight * 0.7, available - 80);
+            var clamped = Math.max(minH, Math.min(maxH, targetBottom));
+            bottomSection.style.height = clamped + "px";
+          }
           function clampBottomSectionHeight() {
             var minH = getBottomSectionMinHeight();
             bottomSection.style.minHeight = minH + "px";
             var currentH = bottomSection.offsetHeight;
             if (currentH < minH) bottomSection.style.height = minH + "px";
           }
+          applyDefaultHorizontalSplit();
           clampBottomSectionHeight();
           window.addEventListener("resize", clampBottomSectionHeight);
           var startY = 0, startH = 0;

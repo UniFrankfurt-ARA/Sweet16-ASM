@@ -164,16 +164,18 @@ function updateUserMemoryDisplay(updatedAddress) {
     if (highlightedRowId) flashElement(highlightedRowId);
 }
 
-// BRA condition codes: B000=always, B100=Z, B101=C, B110=V, B111=N
-// B001, B002, B003 are reserved / never branch (use JNZ, JNC for inverted conditions)
+// BRA condition codes (per instr_set_reduced.pdf):
+//   0XX = unconditional (B000, B001, B010, B011 — low two bits are don't-cares)
+//   100 = Z, 101 = C, 110 = V, 111 = N
+// For inverted flag tests (NZ, NC) use the dedicated JNZ / JNC mnemonics.
 function evaluateCondition(cond) {
     const c = Number(cond) & 7;
-    if (c === 0) return true;                    // B000: unconditional
-    if (c === 4) return zeroFlag === 1;          // B100: Z
-    if (c === 5) return carryFlag === 1;         // B101: C
-    if (c === 6) return overflowFlag === 1;      // B110: V
-    if (c === 7) return negativeFlag === 1;      // B111: N
-    return false;                                 // B001,B010,B011: never
+    if ((c & 0b100) === 0) return true;          // 0XX: unconditional
+    if (c === 4) return zeroFlag === 1;          // 100: Z
+    if (c === 5) return carryFlag === 1;         // 101: C
+    if (c === 6) return overflowFlag === 1;      // 110: V
+    if (c === 7) return negativeFlag === 1;      // 111: N
+    return false;                                 // unreachable (all 8 cases covered)
 }
 
 const SIGN_BIT = 0x8000;

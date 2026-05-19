@@ -29,6 +29,9 @@
   --transition: 0.2s ease;
   --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", "Fira Code", Monaco, monospace;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bottle-green: #006a4e;
+  --bottle-green-dark: #00533d;
+  --bottle-green-soft: rgba(0, 106, 78, 0.14);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -548,6 +551,21 @@ body {
   flex-direction: column;
   gap: 0.55rem;
   align-items: stretch;
+  margin-bottom: 0.75rem;
+}
+.user-memory-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.user-memory-entry-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.user-memory-entry-row .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-height: 38px;
 }
 .user-memory-input label {
   font-size: 0.8rem;
@@ -894,18 +912,52 @@ body {
   flex: 1;
   min-height: 38px;
   font-weight: 600;
+  border: 1px solid var(--bottle-green);
+  color: var(--bottle-green);
+}
+.data-memory-controls .memory-import-block .btn:hover:not(:disabled) {
+  background: var(--bottle-green-soft);
+  color: var(--bottle-green-dark);
 }
 .data-memory-controls .user-memory-input .btn {
   align-self: flex-end;
   min-width: 86px;
   min-height: 38px;
   font-weight: 700;
-  border-color: var(--accent);
-  color: var(--accent);
+  border: 1px solid var(--bottle-green);
+  color: var(--bottle-green);
 }
 .data-memory-controls .user-memory-input .btn:hover:not(:disabled) {
-  background: var(--accent-muted);
-  color: var(--accent-hover);
+  background: var(--bottle-green-soft);
+  color: var(--bottle-green-dark);
+}
+
+/* Bottle-green styling for top memory input row */
+.user-memory-card .user-memory-input label {
+  color: var(--bottle-green);
+}
+.user-memory-card .user-memory-input input {
+  color: var(--bottle-green);
+  border-color: var(--bottle-green);
+}
+.user-memory-card .user-memory-input input::placeholder {
+  color: var(--bottle-green);
+  opacity: 0.85;
+}
+.user-memory-card .user-memory-input input:focus {
+  border-color: var(--bottle-green);
+  box-shadow: 0 0 0 3px var(--bottle-green-soft);
+}
+.user-memory-card .user-memory-input .btn {
+  background: var(--bottle-green);
+  border: 1px solid var(--bottle-green);
+  color: #fff;
+  font-weight: 600;
+}
+.user-memory-card .user-memory-input .btn:hover:not(:disabled) {
+  background: var(--bottle-green-dark);
+  border-color: var(--bottle-green-dark);
+  color: #fff;
 }
 .developer-details {
   flex-shrink: 0;

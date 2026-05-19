@@ -31,6 +31,7 @@
       importMemory: "Import Memory",
       exportMemory: "Export Memory",
       add: "Add",
+      addMemory: "Add Memory",
       set: "Set",
       copy: "Copy",
       download: "Download"

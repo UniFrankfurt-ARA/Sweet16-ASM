@@ -183,6 +183,21 @@ function assemble(input) {
         if (!normalized.endsWith(':')) {
             try {
                 const instruction = parseLine(normalized, index + 1, labels);
+
+                // BRA uses an 8-bit signed PC-relative offset (per instr_set_reduced.pdf),
+                // so the target must be within -128..+127 instructions of the BRA itself.
+                if (instruction.op === 'BRA') {
+                    const pcOfBRA = instructions.length;
+                    const offset = instruction.args[1] - pcOfBRA;
+                    if (offset < -128 || offset > 127) {
+                        throw new Error(
+                            `BRA target is too far (offset ${offset} instructions). ` +
+                            `You are jumping too far — check your jump address. ` +
+                            `BRA can only reach -128..+127 instructions; use JMP for longer jumps.`
+                        );
+                    }
+                }
+
                 instructions.push(instruction);
                 sourceMap.push(srcIdx);
             } catch (error) {

@@ -31,6 +31,7 @@
       importMemory: "Speicher importieren",
       exportMemory: "Speicher exportieren",
       add: "Hinzufügen",
+      addMemory: "Speicher hinzufügen",
       set: "Setzen",
       copy: "Kopieren",
       download: "Herunterladen"
