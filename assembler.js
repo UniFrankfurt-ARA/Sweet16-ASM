@@ -1,5 +1,5 @@
 // Define the instruction set — List 0 (Reduced Instruction Set) only
-// NOT, XOR, OR, AND, ROL, ROR, SBB, ADC, LDL, LDH, STO, STR, LDD,
+// NOT, XOR, OR, AND, ROL, ROR, SBB, ADC, LDL, LDH, STO, STR, LDD, LDR,
 // JZ, JNZ, JC, JNC, JS, JMP, BRA, HLT
 // R0 = 0 and R1 = 1 always (constant registers). Writes are assembled and executed normally;
 // the simulator discards the write-back so R0/R1 stay constant, but flags still update.
@@ -18,6 +18,7 @@ const instructionSet = {
     "STO": { params: 2, types: ["R", "MR"] },
     "STR": { params: 2, types: ["R", "R"] },
     "LDD": { params: 2, types: ["R", "MR"] },
+    "LDR": { params: 2, types: ["R", "R"] },
     "JZ":  { params: 1, types: ["AD"] },
     "JNZ": { params: 1, types: ["AD"] },
     "JC":  { params: 1, types: ["AD"] },
@@ -40,6 +41,13 @@ const cleanLine = (line) => {
 
 // Normalise alternative syntax forms to our canonical forms.
 // Runs after cleanLine so tokens are already space-separated.
+// [0xNNNN] or [#0xNNNN] sugar for absolute addresses (loads/stores).
+const bracketAbsoluteHex = (tok) => {
+    if (!tok) return null;
+    const m = String(tok).match(/^\[\s*(#?0[xX][0-9a-fA-F]+)\s*\]$/i);
+    return m ? m[1].replace(/^#/, "") : null;
+};
+
 const normalizeInstruction = (line) => {
     if (!line) return line;
     if (line.endsWith(':')) return line; // leave labels untouched
@@ -66,6 +74,13 @@ const normalizeInstruction = (line) => {
         return `${newOp} ${p[1]} #0x${byte.toString(16).toUpperCase()}`;
     }
 
+    // STO Rs, [0xADDR]  →  STO Rs, 0xADDR
+    if (op === 'STO' && p[1] && p[2]) {
+        const innerAbs = bracketAbsoluteHex(p[2]);
+        if (innerAbs !== null)
+            return `STO ${p[1]} 0x${parseInt(innerAbs, 16).toString(16).toUpperCase()}`;
+    }
+
     // STO [Rd], Rs  →  STR Rs, Rd   (indirect store via pointer register)
     if (op === 'STO' && p[1] && /^\[R[0-7]\]$/i.test(p[1])) {
         const rd = p[1].slice(1, -1).toUpperCase(); // [R2] → R2
@@ -73,16 +88,22 @@ const normalizeInstruction = (line) => {
         if (rs) return `STR ${rs} ${rd}`;
     }
 
-    // LDD Rd, [Rs]  →  LDD Rd, 0xNNNN
-    // Only meaningful for constant registers: R0 (=0) and R1 (=1).
+    // LDD Rd, [0xADDR]  →  LDD Rd, 0xADDR
+    if (op === 'LDD' && p[1] && p[2]) {
+        const innerAbs = bracketAbsoluteHex(p[2]);
+        if (innerAbs !== null)
+            return `LDD ${p[1]} 0x${parseInt(innerAbs, 16).toString(16).toUpperCase()}`;
+    }
+
+    // LDD Rd, [Rs]  →  LDD Rd, 0xNNNN for R0/R1; else LDR Rd Rs (pointer in Rs)
     if (op === 'LDD' && p[2] && /^\[R[0-7]\]$/i.test(p[2])) {
-        const rs = p[2].slice(1, -1).toUpperCase(); // [R0] → R0
-        const regNum = parseInt(rs.slice(1));
-        if (regNum > 1) throw new Error(
-            `Indirect LDD [${rs}] is only supported for constant registers R0/R1.`
-        );
-        const addr = `0x${regNum.toString(16).padStart(4, '0').toUpperCase()}`;
-        return `${p[0]} ${p[1]} ${addr}`;
+        const rs = p[2].slice(1, -1).toUpperCase(); // [R5] → R5
+        const regNum = parseInt(rs.slice(1), 10);
+        if (regNum <= 1) {
+            const addr = `0x${regNum.toString(16).padStart(4, '0').toUpperCase()}`;
+            return `${p[0]} ${p[1]} ${addr}`;
+        }
+        return `LDR ${p[1]} ${rs}`;
     }
 
     // ROL Rd, Rs  (2-operand form)  →  ROL Rd  (in-place rotate)

@@ -299,6 +299,21 @@ const instructions = {
         UserMemory[address] = registers[rs] & HEX_MASK;
         updateUserMemoryDisplay(address);
     },
+    "LDR": (rd, rp) => {
+        const address = registers[rp];
+        if (address < USR_MEMORY_START || address >= USR_MEMORY_END) {
+            registers[rd] = 0;
+            zeroFlag = 1; overflowFlag = 0; negativeFlag = 0;
+            updateFlagsDisplay(); updateRegisterDisplay();
+            return;
+        }
+        registers[rd] = UserMemory[address] & HEX_MASK;
+        zeroFlag = (registers[rd] === 0) ? 1 : 0;
+        overflowFlag = 0;
+        negativeFlag = (registers[rd] & SIGN_BIT) ? 1 : 0;
+        updateFlagsDisplay();
+        updateRegisterDisplay();
+    },
     "LDD": (rd, address) => {
         if (address < USR_MEMORY_START || address >= USR_MEMORY_END) {
             registers[rd] = 0; // out-of-range reads return 0
@@ -511,6 +526,13 @@ function buildProgramDisplayHtml() {
             w |= (rt & 0b111);
             return w;
         }
+        function encLDR(rd, rp) {
+            let w = (0b01110 << 11);
+            w |= (rd & 0b111) << 8;
+            w |= ((rd >> 3) & 1) << 7;
+            w |= (rp & 0xf) << 3;
+            return w;
+        }
         function encLDD(rd, rs) {
             let w = (0b01011 << 11);
             w |= (rd & 0b111) << 8;
@@ -546,6 +568,8 @@ function buildProgramDisplayHtml() {
                 return encSTO(args[0], args[1]);
             case "LDD":
                 return encLDD(args[0], args[1]);
+            case "LDR":
+                return encLDR(args[0], args[1]);
             case "LDL":
                 return encLD(false, args[0], args[1] & 0xff);
             case "LDH":
@@ -735,16 +759,28 @@ function _runAllStep() {
 
     executeNext(); // run one instruction (handles halt/done detection internally)
 
-    // Stop and unschedule when done
+    // Stop and unschedule when done (do NOT rewind PC here)
     if (halted || instructionPointer >= (program?.length ?? 0)) {
-        runAllActive = false;
-        resetForRerun();
+        finalizeRunAllStopped();
         return;
     }
 
     if (runAllActive) {
         setTimeout(_runAllStep, window.runAllDelay || 100);
     }
+}
+
+function finalizeRunAllStopped() {
+    runAllActive = false;
+    runAllPaused = false;
+    window.showToast?.(_t("msg.programFinishedAfterRun"));
+    updateMemoryDisplay();
+    updateSourceDisplay();
+    updateControlPanel();
+    const btnNext = document.getElementById('RUN_NEXT');
+    const btnAll  = document.getElementById('RUN_ALL');
+    if (btnNext) { btnNext.textContent = _t("btn.reRunNext"); btnNext.classList.add('rerun-btn'); btnNext.disabled = false; }
+    if (btnAll)  { btnAll.textContent  = _t("btn.reRunAll");  btnAll.classList.add('rerun-btn'); btnAll.classList.remove('pause-btn', 'continue-btn'); }
 }
 
 function resetForRerun() {
@@ -825,8 +861,25 @@ window.isRunAllPaused = function () { return runAllPaused; };
 
 function executeNext() {
 
-    if (halted || instructionPointer >= program.length) {
-        const reason = halted ? _t("msg.hltReached") : _t("msg.endOfProgram");
+    // PC beyond last instruction: rewind to start without fetching (preserves RAM/register state)
+    if (program.length > 0 && instructionPointer >= program.length) {
+        instructionPointer = 0;
+        halted = false;
+        updateMemoryDisplay();
+        updateSourceDisplay();
+        updateControlPanel();
+        if (!runAllActive) {
+            window.resetRunButtonLabels?.();
+        }
+        window.refreshSimulatorLabels?.();
+        if (!runAllActive && !runAllPaused) {
+            window.showToast?.(_t("msg.rewindPcNoExecute"));
+        }
+        return;
+    }
+
+    if (halted) {
+        const reason = _t("msg.hltReached");
         resetForRerun();
         window.showToast?.(_t("msg.programFinished", { reason: reason }));
         return;
