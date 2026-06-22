@@ -288,37 +288,21 @@ const instructions = {
         updateFlagsDisplay();
         updateRegisterDisplay();
     },
-    "STO": (rs, address) => {
-        if (address < USR_MEMORY_START || address >= USR_MEMORY_END) return; // silently ignore out-of-range
-        UserMemory[address] = registers[rs] & HEX_MASK;
+    "STO": (ptrReg, valReg) => {
+        const address = registers[ptrReg] & HEX_MASK;
+        if (address < USR_MEMORY_START || address >= USR_MEMORY_END) return;
+        UserMemory[address] = registers[valReg] & HEX_MASK;
         updateUserMemoryDisplay(address);
     },
-    "STR": (rs, rd) => {
-        const address = registers[rd];
-        if (address < USR_MEMORY_START || address >= USR_MEMORY_END) return; // silently ignore out-of-range
-        UserMemory[address] = registers[rs] & HEX_MASK;
-        updateUserMemoryDisplay(address);
-    },
-    "LDR": (rd, rp) => {
-        const address = registers[rp];
+    "LDD": (rd, ptrReg) => {
+        const address = registers[ptrReg] & HEX_MASK;
         if (address < USR_MEMORY_START || address >= USR_MEMORY_END) {
             registers[rd] = 0;
-            zeroFlag = 1; overflowFlag = 0; negativeFlag = 0;
-            updateFlagsDisplay(); updateRegisterDisplay();
-            return;
-        }
-        registers[rd] = UserMemory[address] & HEX_MASK;
-        zeroFlag = (registers[rd] === 0) ? 1 : 0;
-        overflowFlag = 0;
-        negativeFlag = (registers[rd] & SIGN_BIT) ? 1 : 0;
-        updateFlagsDisplay();
-        updateRegisterDisplay();
-    },
-    "LDD": (rd, address) => {
-        if (address < USR_MEMORY_START || address >= USR_MEMORY_END) {
-            registers[rd] = 0; // out-of-range reads return 0
-            zeroFlag = 1; overflowFlag = 0; negativeFlag = 0;
-            updateFlagsDisplay(); updateRegisterDisplay();
+            zeroFlag = 1;
+            overflowFlag = 0;
+            negativeFlag = 0;
+            updateFlagsDisplay();
+            updateRegisterDisplay();
             return;
         }
         registers[rd] = UserMemory[address] & HEX_MASK;
@@ -526,13 +510,6 @@ function buildProgramDisplayHtml() {
             w |= (rt & 0b111);
             return w;
         }
-        function encLDR(rd, rp) {
-            let w = (0b01110 << 11);
-            w |= (rd & 0b111) << 8;
-            w |= ((rd >> 3) & 1) << 7;
-            w |= (rp & 0xf) << 3;
-            return w;
-        }
         function encLDD(rd, rs) {
             let w = (0b01011 << 11);
             w |= (rd & 0b111) << 8;
@@ -564,12 +541,9 @@ function buildProgramDisplayHtml() {
                 return encUnary(OP5_ROTN[op], rd, rs);
             }
             case "STO":
-            case "STR":
                 return encSTO(args[0], args[1]);
             case "LDD":
                 return encLDD(args[0], args[1]);
-            case "LDR":
-                return encLDR(args[0], args[1]);
             case "LDL":
                 return encLD(false, args[0], args[1] & 0xff);
             case "LDH":
@@ -602,12 +576,7 @@ function buildProgramDisplayHtml() {
         const op = instruction?.op || '';
         const line = `${op}${argsHex ? ` ${argsHex}` : ''}${argsDec ? ` (${argsDec})` : ''}`;
         const encodedWord = encodeInstructionWord(i, op, args);
-        const machineCode =
-            typeof window.formatSweet16MachineCode === "function"
-                ? window.formatSweet16MachineCode(encodedWord)
-                : (encodedWord == null
-                    ? (window.sweet16NoMachineCode || "NONE")
-                    : toHexWord(encodedWord));
+        const machineCode = encodedWord == null ? "--" : toHexWord(encodedWord);
         const isIp = (i === instructionPointer);
         const addressCell = `${address}${isIp ? " [IP]" : ""}`;
         lines.push(

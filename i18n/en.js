@@ -93,7 +93,7 @@
       p1: "16-bit word: build, mask and recombine (LDH, AND, OR, NOT)",
       p2: "Count set bits in a byte (ROL loop, JC, JNZ)",
       p3: "Find max and check sign (BRA, JNC, JS)",
-      p4: "Pointer-based memory copy (STR, LDD)",
+      p4: "Indirect memory (STO [Rs], Rt / LDD Rd, [Rs])",
       p5: "Alias test suite (all 16 aliases)"
     },
     instrDesc: {
@@ -107,9 +107,8 @@
       ADC: "Add with carry: Rd = Rs + Rt + CF.",
       LDL: "Load low byte / 16-bit constant into register.",
       LDH: "Load high byte into register (low byte preserved).",
-      STO: "Store register to user memory at fixed address.",
-      STR: "Store register to user memory at address in another register.",
-      LDD: "Load from user memory at fixed address into register.",
+      STO: "Store Rt to user memory at address in Rs: STO [Rs], Rt.",
+      LDD: "Load Rd from user memory at address in Rs: LDD Rd, [Rs].",
       JZ: "Jump if Zero flag is set (ZF=1).",
       JNZ: "Jump if Zero flag is clear (ZF=0).",
       JC: "Jump if Carry flag is set (CF=1).",

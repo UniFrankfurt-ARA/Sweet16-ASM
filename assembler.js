@@ -1,8 +1,7 @@
-// Define the instruction set — List 0 (Reduced Instruction Set) only
-// NOT, XOR, OR, AND, ROL, ROR, SBB, ADC, LDL, LDH, STO, STR, LDD, LDR,
-// JZ, JNZ, JC, JNC, JS, JMP, BRA, HLT
-// R0 = 0 and R1 = 1 always (constant registers). Writes are assembled and executed normally;
-// the simulator discards the write-back so R0/R1 stay constant, but flags still update.
+// Sweet16-ASM — RISC reduced ISA (instr_set_reduced.pdf)
+// Memory (spec): STO [rs], rt  Mem[rs]=rt   LDD rd, [rs]  rd=Mem[rs]
+// Assembler also accepts STO Rn, 0xADDR / LDD Rn, 0xADDR (expanded to indirect STO/LDD).
+// STR Rt, Rs is a deprecated alias for STO [Rs], Rt.
 
 const instructionSet = {
     "NOT": { params: 2, types: ["R", "R"] },
@@ -15,10 +14,8 @@ const instructionSet = {
     "ADC": { params: 3, types: ["R", "R", "R"] },
     "LDL": { params: 2, types: ["R", "C"] },
     "LDH": { params: 2, types: ["R", "C"] },
-    "STO": { params: 2, types: ["R", "MR"] },
-    "STR": { params: 2, types: ["R", "R"] },
-    "LDD": { params: 2, types: ["R", "MR"] },
-    "LDR": { params: 2, types: ["R", "R"] },
+    "STO": { params: 2, types: ["R", "R"] },
+    "LDD": { params: 2, types: ["R", "R"] },
     "JZ":  { params: 1, types: ["AD"] },
     "JNZ": { params: 1, types: ["AD"] },
     "JC":  { params: 1, types: ["AD"] },
@@ -29,40 +26,93 @@ const instructionSet = {
     "HLT": { params: 0, types: [] }
 };
 
-// Strip comments and normalise whitespace
 const cleanLine = (line) => {
     return line
-        .split('--')[0] // Remove -- comments (verify.s16 / Sweet16 style)
-        .split(';')[0]  // Remove ; comments
+        .split('--')[0]
+        .split(';')[0]
         .trim()
-        .replace(/,+/g, ' ') // commas → spaces
+        .replace(/,+/g, ' ')
         .replace(/\s+/g, ' ');
 };
 
-// Normalise alternative syntax forms to our canonical forms.
-// Runs after cleanLine so tokens are already space-separated.
-// [0xNNNN] or [#0xNNNN] sugar for absolute addresses (loads/stores).
-const bracketAbsoluteHex = (tok) => {
-    if (!tok) return null;
-    const m = String(tok).match(/^\[\s*(#?0[xX][0-9a-fA-F]+)\s*\]$/i);
-    return m ? m[1].replace(/^#/, "") : null;
-};
+function parseBracketReg(tok) {
+    const m = tok && tok.match(/^\[R([0-7])\]$/i);
+    if (!m) return null;
+    return parseInt(m[1], 10);
+}
+
+function isHexAddrToken(tok) {
+    return tok && /^0x[0-9A-Fa-f]+$/i.test(tok);
+}
+
+function pickScratchPtr(valReg) {
+    for (const r of [7, 6]) {
+        if (r !== valReg) return r;
+    }
+    throw new Error(
+        `Cannot expand absolute memory access: need a scratch pointer register (not R${valReg}).`
+    );
+}
+
+function byteHex(n) {
+    return `#0x${(n & 0xff).toString(16).toUpperCase()}`;
+}
+
+/** STO Rn, 0xADDR → LDL/LDH scratch + STO [scratch], Rn (spec-correct indirect). */
+function expandAbsoluteStoreLines(valReg, addr) {
+    addr &= 0xffff;
+    if (addr === 0) return [`STO R0 R${valReg}`];
+    if (addr === 1) return [`STO R1 R${valReg}`];
+    const ptr = pickScratchPtr(valReg);
+    return [
+        `LDL R${ptr} ${byteHex(addr & 0xff)}`,
+        `LDH R${ptr} ${byteHex((addr >> 8) & 0xff)}`,
+        `STO R${ptr} R${valReg}`
+    ];
+}
+
+/** LDD Rn, 0xADDR → LDL/LDH scratch + LDD Rn, [scratch]. */
+function expandAbsoluteLoadLines(dstReg, addr) {
+    addr &= 0xffff;
+    if (addr === 0) return [`LDD R${dstReg} R0`];
+    if (addr === 1) return [`LDD R${dstReg} R1`];
+    const ptr = pickScratchPtr(dstReg);
+    return [
+        `LDL R${ptr} ${byteHex(addr & 0xff)}`,
+        `LDH R${ptr} ${byteHex((addr >> 8) & 0xff)}`,
+        `LDD R${dstReg} R${ptr}`
+    ];
+}
+
+function expandMemorySugar(normalized) {
+    if (!normalized || normalized.endsWith(':')) return [normalized];
+    const parts = normalized.split(' ');
+    const op = parts[0];
+
+    if (op === 'STO' && parts[1] && isHexAddrToken(parts[2])) {
+        const valReg = parseInt(parts[1].slice(1), 10);
+        const addr = parseInt(parts[2], 16);
+        return expandAbsoluteStoreLines(valReg, addr);
+    }
+    if (op === 'LDD' && parts[1] && isHexAddrToken(parts[2])) {
+        const dstReg = parseInt(parts[1].slice(1), 10);
+        const addr = parseInt(parts[2], 16);
+        return expandAbsoluteLoadLines(dstReg, addr);
+    }
+    return [normalized];
+}
 
 const normalizeInstruction = (line) => {
     if (!line) return line;
-    if (line.endsWith(':')) return line; // leave labels untouched
+    if (line.endsWith(':')) return line;
     const parts = line.split(' ');
     let op = parts[0].toUpperCase();
 
-    // Uppercase register names: r0 → R0, r5 → R5, etc.
     const p = parts.map((tok, i) => {
         if (i === 0) return op;
         return tok.replace(/^(r)([0-7])$/i, (_, _r, n) => 'R' + n);
     });
 
-    // LDLO/LDHI: extract low/high byte from 16-bit constant (per verify.s16 / index2)
-    // LDLO rd, 0x20  → LDL rd, #0x20  (low byte of 0x0020 = 0x20)
-    // LDHI rd, 0x20  → LDH rd, #0x00  (high byte of 0x0020 = 0x00)  so R5 = 0x0020
     if ((op === 'LDLO' || op === 'LDHI') && p[2]) {
         const raw = p[2].replace(/^#/, '');
         let full = 0;
@@ -74,74 +124,49 @@ const normalizeInstruction = (line) => {
         return `${newOp} ${p[1]} #0x${byte.toString(16).toUpperCase()}`;
     }
 
-    // STO Rs, [0xADDR]  →  STO Rs, 0xADDR
-    if (op === 'STO' && p[1] && p[2]) {
-        const innerAbs = bracketAbsoluteHex(p[2]);
-        if (innerAbs !== null)
-            return `STO ${p[1]} 0x${parseInt(innerAbs, 16).toString(16).toUpperCase()}`;
+    // STO [Rs], Rt  →  STO Rs Rt   (Mem[Rs] = Rt per PDF)
+    if (op === 'STO' && p[1]) {
+        const ptr = parseBracketReg(p[1]);
+        if (ptr !== null && p[2]) return `STO R${ptr} ${p[2]}`;
     }
 
-    // STO [Rd], Rs  →  STR Rs, Rd   (indirect store via pointer register)
-    if (op === 'STO' && p[1] && /^\[R[0-7]\]$/i.test(p[1])) {
-        const rd = p[1].slice(1, -1).toUpperCase(); // [R2] → R2
-        const rs = p[2];
-        if (rs) return `STR ${rs} ${rd}`;
+    // STR Rt, Rs  →  STO Rs Rt  (deprecated alias)
+    if (op === 'STR' && p[1] && p[2]) return `STO ${p[2]} ${p[1]}`;
+
+    // LDD Rd, [Rs]  →  LDD Rd Rs
+    if (op === 'LDD' && p[2]) {
+        const ptr = parseBracketReg(p[2]);
+        if (ptr !== null) return `LDD ${p[1]} R${ptr}`;
     }
 
-    // LDD Rd, [0xADDR]  →  LDD Rd, 0xADDR
-    if (op === 'LDD' && p[1] && p[2]) {
-        const innerAbs = bracketAbsoluteHex(p[2]);
-        if (innerAbs !== null)
-            return `LDD ${p[1]} 0x${parseInt(innerAbs, 16).toString(16).toUpperCase()}`;
-    }
-
-    // LDD Rd, [Rs]  →  LDD Rd, 0xNNNN for R0/R1; else LDR Rd Rs (pointer in Rs)
-    if (op === 'LDD' && p[2] && /^\[R[0-7]\]$/i.test(p[2])) {
-        const rs = p[2].slice(1, -1).toUpperCase(); // [R5] → R5
-        const regNum = parseInt(rs.slice(1), 10);
-        if (regNum <= 1) {
-            const addr = `0x${regNum.toString(16).padStart(4, '0').toUpperCase()}`;
-            return `${p[0]} ${p[1]} ${addr}`;
-        }
-        return `LDR ${p[1]} ${rs}`;
-    }
-
-    // ROL Rd, Rs  (2-operand form)  →  ROL Rd  (in-place rotate)
     if (op === 'ROL' && p.length === 3) return `ROL ${p[1]}`;
-
-    // ROR Rd, Rs  (2-operand form)  →  ROR Rd  (in-place rotate)
     if (op === 'ROR' && p.length === 3) return `ROR ${p[1]}`;
 
     return p.join(' ');
 };
 
-// Parse operands based on the type
 const parseOperand = (operand, type, labels) => {
     if (type === "R" && operand.match(/^R[0-7]$/)) {
-        return parseInt(operand.slice(1)); // Register number (e.g., R0-R7)
+        return parseInt(operand.slice(1), 10);
     }
     if (type === "C" && operand.match(/^#0x[0-9A-Fa-f]+$/)) {
-        return parseInt(operand.slice(1), 16); // Hexadecimal constant (e.g., #0x10)
+        return parseInt(operand.slice(1), 16);
     }
     if (type === "C" && operand.match(/^0x[0-9A-Fa-f]+$/)) {
-        return parseInt(operand, 16); // Allow 0xNNNN as constant
+        return parseInt(operand, 16);
     }
     if (type === "AD" && labels[operand] !== undefined) {
-        return labels[operand]; // Address resolved from label
+        return labels[operand];
     }
     if (type === "AD" && operand.match(/^0x[0-9A-Fa-f]+$/)) {
-        return parseInt(operand, 16); // Hexadecimal address (e.g., 0x0004)
-    }
-    if (type === "MR" && operand.match(/^0x[0-9A-Fa-f]+$/)) {
-        return parseInt(operand, 16); // Memory address (e.g., 0x0010)
+        return parseInt(operand, 16);
     }
     if (type === "COND" && operand.match(/^B[01]{3}$/i)) {
-        return parseInt(operand.slice(1), 2); // B000..B111 -> 0..7
+        return parseInt(operand.slice(1), 2);
     }
     throw new Error(`Invalid operand "${operand}" for expected type: ${type}`);
 };
 
-// Parse a single line of ASM code
 const parseLine = (line, lineNumber, labels) => {
     const parts = line.split(' ');
     const op = parts[0].toUpperCase();
@@ -164,56 +189,46 @@ const parseLine = (line, lineNumber, labels) => {
     return { op, args: operands };
 };
 
-// Main function to assemble the program.
-// Returns the instructions array with an extra `.sourceMap` property:
-//   sourceMap[instrIndex] = 0-based line index in the original `input` string
-//   so callers can highlight the corresponding source line for each instruction.
 function assemble(input) {
     const rawLines = input.split('\n');
 
-    // Build indexed lines: preserve original line index through cleaning/normalising
     const indexedLines = [];
     rawLines.forEach((raw, srcIdx) => {
         const cleaned = cleanLine(raw);
         if (!cleaned) return;
         const normalized = normalizeInstruction(cleaned);
-        if (normalized) indexedLines.push({ normalized, srcIdx });
+        if (!normalized) return;
+        expandMemorySugar(normalized).forEach((expanded) => {
+            indexedLines.push({ normalized: expanded, srcIdx });
+        });
     });
 
     const labels = {};
     const instructions = [];
-    const sourceMap = []; // sourceMap[instrIdx] = srcIdx in rawLines
+    const sourceMap = [];
     let currentAddress = 0;
 
-    // First pass: Identify labels
     indexedLines.forEach(({ normalized }) => {
         if (normalized.endsWith(':')) {
             const label = normalized.slice(0, -1);
-            if (labels[label] !== undefined) {
-                throw new Error(`Duplicate label "${label}" found.`);
-            }
+            if (labels[label] !== undefined) throw new Error(`Duplicate label "${label}" found.`);
             labels[label] = currentAddress;
         } else {
             currentAddress += 1;
         }
     });
 
-    // Second pass: Parse instructions
-    // R0/R1 writes are allowed by the assembler; the simulator silently keeps them constant.
     indexedLines.forEach(({ normalized, srcIdx }, index) => {
         if (!normalized.endsWith(':')) {
             try {
                 const instruction = parseLine(normalized, index + 1, labels);
 
-                // BRA uses an 8-bit signed PC-relative offset (per instr_set_reduced.pdf),
-                // so the target must be within -128..+127 instructions of the BRA itself.
                 if (instruction.op === 'BRA') {
                     const pcOfBRA = instructions.length;
                     const offset = instruction.args[1] - pcOfBRA;
                     if (offset < -128 || offset > 127) {
                         throw new Error(
                             `BRA target is too far (offset ${offset} instructions). ` +
-                            `You are jumping too far — check your jump address. ` +
                             `BRA can only reach -128..+127 instructions; use JMP for longer jumps.`
                         );
                     }
@@ -227,10 +242,8 @@ function assemble(input) {
         }
     });
 
-    // Attach source map as a non-enumerable property so it travels with the array
     instructions.sourceMap = sourceMap;
     return instructions;
 }
 
-// Export the assemble function for use in the browser
 window.assemble = assemble;

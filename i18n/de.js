@@ -93,7 +93,7 @@
       p1: "16-Bit-Wort: Aufbau, Maske und Rekombination (LDH, AND, OR, NOT)",
       p2: "Gesetzte Bits in einem Byte zählen (ROL-Schleife, JC, JNZ)",
       p3: "Maximum finden und Vorzeichen prüfen (BRA, JNC, JS)",
-      p4: "Zeigerbasierte Speicherkopie (STR, LDD)",
+      p4: "Indirekter Speicherzugriff (STO [Rs], Rt / LDD Rd, [Rs])",
       p5: "Alias-Testsuite (alle 16 Aliase)"
     },
     instrDesc: {
@@ -107,9 +107,8 @@
       ADC: "Addition mit Carry: Rd = Rs + Rt + CF.",
       LDL: "Niederwertiges Byte / 16-Bit-Konstante in Register laden.",
       LDH: "Hochwertiges Byte in Register laden (niederwertiges erhalten).",
-      STO: "Register in Benutzerspeicher an fester Adresse speichern.",
-      STR: "Register an Adresse in anderem Register speichern.",
-      LDD: "Aus Benutzerspeicher an fester Adresse laden.",
+      STO: "Rt in Benutzerspeicher an Adresse in Rs speichern: STO [Rs], Rt.",
+      LDD: "Rd aus Benutzerspeicher an Adresse in Rs laden: LDD Rd, [Rs].",
       JZ: "Sprung wenn Nullflag gesetzt (ZF=1).",
       JNZ: "Sprung wenn Nullflag gelöscht (ZF=0).",
       JC: "Sprung wenn Übertragsflag gesetzt (CF=1).",

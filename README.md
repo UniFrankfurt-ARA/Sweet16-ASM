@@ -21,7 +21,7 @@ Use **RISC** here for the reduced teaching ISA. Switch to **FULL** or **EXTENDED
 - Arithmetic via carry: `ADC`, `SBB` (no plain `ADD`/`SUB` in this list)
 - Shifts / rotates: `ROL`, `ROR` (in-place style after normalization)
 - Loads: `LDL`, `LDH`, `LDLO`/`LDHI`
-- Memory: fixed address `STO Rs, 0xADDR` or `STO Rs, [0xADDR]`; `LDD Rn, 0xADDR` or `LDD Rn, [0xADDR]`; indirect **`LDR Rd, Rptr`** (alias: `LDD Rd, [Rptr]` except `R0`/`R1` fold to addresses 0/1); `STO [Rs], Rt` normalizes to `STR`
+- Memory (per `instr_set_reduced.pdf`): **`STO [Rs], Rt`** → `Mem[Rs] = Rt`; **`LDD Rd, [Rs]`** → `Rd = Mem[Rs]`; absolute sugar **`STO Rn, 0xADDR`** / **`LDD Rn, 0xADDR`** (assembler expands via scratch register); deprecated alias **`STR Rt, Rs`** → `STO [Rs], Rt`
 - Control: `JZ`, `JC`, `JNZ`, `JNC`, `JS`, `JMP`, `BRA`, `HLT`
 - **R0 = 0** and **R1 = 1** are treated as constant in the simulator (writes are ignored for those registers)
 

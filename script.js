@@ -335,7 +335,7 @@ function showResetDialog({ onKeep, onClear }) {
 
 /* -----------------------------
    Machine code encoder (index2 philosophy: 16-bit hex per instruction)
-   List 0 only: NOT, XOR, OR, AND, ROL, ROR, SBB, ADC, LDL, LDH, STO, STR, LDD, JZ, JC, JMP, BRA, HLT
+   List 0: NOT, XOR, OR, AND, ROL, ROR, SBB, ADC, LDL, LDH, STO, LDD, JZ, JC, JMP, BRA, HLT
 --------------------------------*/
 function encodeProgramToHex(program) {
   if (!program || program.length === 0) return "";
@@ -410,9 +410,6 @@ function encodeProgramToHex(program) {
         case "STO":
           w = encSTO(args[0], args[1]);
           break;
-        case "STR":
-          w = encSTO(args[0], args[1]);
-          break;
         case "LDD":
           w = encLDD(args[0], args[1]);
           break;
@@ -432,7 +429,7 @@ function encodeProgramToHex(program) {
           w = 0b11111 << 11;
           break;
         default:
-          out.push(window.sweet16NoMachineCode || "NONE");
+          out.push(`# ${op} (unsupported for hex)`);
           continue;
       }
       out.push(toHex(w));
@@ -686,7 +683,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const machineCells = Array.from(document.querySelectorAll("#InMemoryProgram .memory-program-machine"));
     const codes = machineCells
       .map(el => (el.textContent || "").trim())
-      .filter(code => code && code !== "--" && code !== "NONE" && /^0x/i.test(code));
+      .filter(code => code && code !== "--");
     if (codes.length === 0) return "";
     return ["v2.0 raw", ...codes].join("\n");
   }

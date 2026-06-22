@@ -4,7 +4,7 @@
 //   P2 – LDL, LDH, AND, OR, NOT, XOR, STO, HLT
 //   P3 – LDL, XOR, ROL, ROR, ADC, SBB, JC, JNC, JZ, JNZ, JMP, STO, HLT
 //   P4 – LDL, XOR, ROR, SBB, BRA, JS, JNC, STO, HLT
-//   P5 – LDL, STO, LDD, STR, XOR, ROR, ADC, HLT
+//   P5 – LDL, STO, LDD, XOR, ROR, ADC, HLT
 
 const samplePrograms = [
     {
@@ -117,11 +117,11 @@ done:
 `
     },
     {
-        name: "Pointer-based memory copy (STR, LDD)",
+        name: "Pointer-based memory copy (STO [Rs], Rt / LDD)",
         code: `
 ; Write two values to fixed addresses, then copy them to a new
 ; location using a pointer register incremented with ADC + R1.
-; Instructions used: LDL, STO, LDD, STR, XOR, ROR, ADC, HLT
+; Instructions used: LDL, STO, LDD, XOR, ROR, ADC, HLT
 
 ; --- write source values ---
 LDL R2, #0x00AA
@@ -133,14 +133,14 @@ STO R2, 0x0001        ; mem[1] = 0xBB  (source 2)
 LDL R5, #0x000A       ; R5 = destination pointer = 10
 
 LDD R3, 0x0000        ; R3 = mem[0] = 0xAA
-STR R3, R5            ; mem[R5] = mem[10] = 0xAA
+STO [R5], R3          ; mem[R5] = mem[10] = 0xAA
 
 XOR R4, R4, R4
 ROR R4                ; CF = 0
 ADC R5, R5, R1        ; R5 = 11  (R1 is always 1)
 
 LDD R3, 0x0001        ; R3 = mem[1] = 0xBB
-STR R3, R5            ; mem[11] = 0xBB
+STO [R5], R3          ; mem[11] = 0xBB
 
 HLT
 `

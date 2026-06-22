@@ -69,6 +69,19 @@ window.sampleAliases = [
         category:   "Flag Management"
     },
 
+    // ── MEMORY (syntax sugar) ───────────────────────────────────────────────────
+
+    {
+        name:       "STR",
+        def:        "#DEF STR = STO",
+        use:        "STR R3, R5",
+        flags:      "-",
+        description:
+            "Deprecated alias for STO [Rs], Rt. STR Rt, Rs expands to STO [Rs], Rt (spec form). " +
+            "Prefer STO [R5], R3 in new code.",
+        category:   "Memory"
+    },
+
     // ── COMPARE / TEST ────────────────────────────────────────────────────────
 
     {
