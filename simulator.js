@@ -167,7 +167,7 @@ function updateUserMemoryDisplay(updatedAddress) {
 // BRA condition codes (per instr_set_reduced.pdf):
 //   0XX = unconditional (B000, B001, B010, B011 — low two bits are don't-cares)
 //   100 = Z, 101 = C, 110 = V, 111 = N
-// For inverted flag tests (NZ, NC) use the dedicated JNZ / JNC mnemonics.
+// Reduced jumps: JZ, JC, JMP, BRA.  (JNZ/JNC/JS are assembler sugar only.)
 function evaluateCondition(cond) {
     const c = Number(cond) & 7;
     if ((c & 0b100) === 0) return true;          // 0XX: unconditional
@@ -225,29 +225,24 @@ const instructions = {
         updateFlagsDisplay();
         updateRegisterDisplay();
     },
-    "ROL": (rd) => {
-        // Rotate left THROUGH carry: MSB → CF, old CF → LSB
-        const oldMSB   = (registers[rd] & 0x8000) >> 15;
-        const carryOut = oldMSB;
-        registers[rd]  = ((registers[rd] << 1) | carryFlag) & HEX_MASK;
-        carryFlag      = carryOut;
-        zeroFlag       = (registers[rd] === 0) ? 1 : 0;
-        negativeFlag   = (registers[rd] & SIGN_BIT) ? 1 : 0;
-        // VF: sign changed — old MSB differs from new MSB (bit14 of old value shifted up)
-        overflowFlag   = (oldMSB !== ((registers[rd] & SIGN_BIT) >> 15)) ? 1 : 0;
+    "ROL": (rd, rs) => {
+        const oldMSB = (registers[rs] & 0x8000) >> 15;
+        registers[rd] = ((registers[rs] << 1) | carryFlag) & HEX_MASK;
+        carryFlag = oldMSB;
+        zeroFlag = (registers[rd] === 0) ? 1 : 0;
+        negativeFlag = (registers[rd] & SIGN_BIT) ? 1 : 0;
+        overflowFlag = (oldMSB !== ((registers[rd] & SIGN_BIT) >> 15)) ? 1 : 0;
         updateFlagsDisplay();
         updateRegisterDisplay();
     },
-    "ROR": (rd) => {
-        // Rotate right THROUGH carry: LSB → CF, old CF → MSB
-        const oldMSB   = (registers[rd] & 0x8000) >> 15;
-        const carryOut = registers[rd] & 0x1;
-        registers[rd]  = ((registers[rd] >> 1) | (carryFlag << 15)) & HEX_MASK;
-        carryFlag      = carryOut;
-        zeroFlag       = (registers[rd] === 0) ? 1 : 0;
-        negativeFlag   = (registers[rd] & SIGN_BIT) ? 1 : 0;
-        // VF: sign changed — old MSB differs from incoming carry (new MSB)
-        overflowFlag   = (oldMSB !== ((registers[rd] & SIGN_BIT) >> 15)) ? 1 : 0;
+    "ROR": (rd, rs) => {
+        const oldMSB = (registers[rs] & 0x8000) >> 15;
+        const lsb = registers[rs] & 1;
+        registers[rd] = ((registers[rs] >> 1) | (carryFlag << 15)) & HEX_MASK;
+        carryFlag = lsb;
+        zeroFlag = (registers[rd] === 0) ? 1 : 0;
+        negativeFlag = (registers[rd] & SIGN_BIT) ? 1 : 0;
+        overflowFlag = (oldMSB !== ((registers[rd] & SIGN_BIT) >> 15)) ? 1 : 0;
         updateFlagsDisplay();
         updateRegisterDisplay();
     },
@@ -313,10 +308,7 @@ const instructions = {
         updateRegisterDisplay();
     },
     "JZ":  (address) => { if (zeroFlag     === 1) instructionPointer = address; },
-    "JNZ": (address) => { if (zeroFlag     === 0) instructionPointer = address; },
     "JC":  (address) => { if (carryFlag    === 1) instructionPointer = address; },
-    "JNC": (address) => { if (carryFlag    === 0) instructionPointer = address; },
-    "JS":  (address) => { if (negativeFlag === 1) instructionPointer = address; },
     "JMP": (address) => { instructionPointer = address; },
     "BRA": (cond, address) => { if (evaluateCondition(cond)) instructionPointer = address; },
     "HLT": () => { halted = true; }

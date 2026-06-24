@@ -1,15 +1,16 @@
 // Sweet16-ASM — RISC reduced ISA (instr_set_reduced.pdf)
-// Memory (spec): STO [rs], rt  Mem[rs]=rt   LDD rd, [rs]  rd=Mem[rs]
-// Assembler also accepts STO Rn, 0xADDR / LDD Rn, 0xADDR (expanded to indirect STO/LDD).
-// STR Rt, Rs is a deprecated alias for STO [Rs], Rt.
+// Memory: STO [rs], rt  Mem[Rs]=Rt   LDD rd, [rs]  Rd=Mem[Rs]
+// Jumps:  JZ, JC, JMP, BRA  (+ HLT alias)
+// Assembler sugar (expanded before labels): JNZ/JNC/JS, STR, LDLO/LDHI
+// Direct STO Rn, 0xADDR / LDD Rn, 0xADDR are rejected (not in architecture).
 
 const instructionSet = {
     "NOT": { params: 2, types: ["R", "R"] },
     "XOR": { params: 3, types: ["R", "R", "R"] },
     "OR":  { params: 3, types: ["R", "R", "R"] },
     "AND": { params: 3, types: ["R", "R", "R"] },
-    "ROL": { params: 1, types: ["R"] },
-    "ROR": { params: 1, types: ["R"] },
+    "ROL": { params: 2, types: ["R", "R"] },
+    "ROR": { params: 2, types: ["R", "R"] },
     "SBB": { params: 3, types: ["R", "R", "R"] },
     "ADC": { params: 3, types: ["R", "R", "R"] },
     "LDL": { params: 2, types: ["R", "C"] },
@@ -17,14 +18,13 @@ const instructionSet = {
     "STO": { params: 2, types: ["R", "R"] },
     "LDD": { params: 2, types: ["R", "R"] },
     "JZ":  { params: 1, types: ["AD"] },
-    "JNZ": { params: 1, types: ["AD"] },
     "JC":  { params: 1, types: ["AD"] },
-    "JNC": { params: 1, types: ["AD"] },
-    "JS":  { params: 1, types: ["AD"] },
     "JMP": { params: 1, types: ["AD"] },
     "BRA": { params: 2, types: ["COND", "AD"] },
     "HLT": { params: 0, types: [] }
 };
+
+let sugarLabelCounter = 0;
 
 const cleanLine = (line) => {
     return line
@@ -45,60 +45,40 @@ function isHexAddrToken(tok) {
     return tok && /^0x[0-9A-Fa-f]+$/i.test(tok);
 }
 
-function pickScratchPtr(valReg) {
-    for (const r of [7, 6]) {
-        if (r !== valReg) return r;
-    }
+function rejectDirectMemory(op, line) {
     throw new Error(
-        `Cannot expand absolute memory access: need a scratch pointer register (not R${valReg}).`
+        `${op} with a fixed address is not in the reduced instruction set ` +
+        `(a 16-bit address cannot fit in one instruction word). ` +
+        `Use ${op === 'STO' ? 'STO [Rs], Rt' : 'LDD Rd, [Rs]'} with the address in register Rs.`
     );
 }
 
-function byteHex(n) {
-    return `#0x${(n & 0xff).toString(16).toUpperCase()}`;
-}
-
-/** STO Rn, 0xADDR → LDL/LDH scratch + STO [scratch], Rn (spec-correct indirect). */
-function expandAbsoluteStoreLines(valReg, addr) {
-    addr &= 0xffff;
-    if (addr === 0) return [`STO R0 R${valReg}`];
-    if (addr === 1) return [`STO R1 R${valReg}`];
-    const ptr = pickScratchPtr(valReg);
-    return [
-        `LDL R${ptr} ${byteHex(addr & 0xff)}`,
-        `LDH R${ptr} ${byteHex((addr >> 8) & 0xff)}`,
-        `STO R${ptr} R${valReg}`
-    ];
-}
-
-/** LDD Rn, 0xADDR → LDL/LDH scratch + LDD Rn, [scratch]. */
-function expandAbsoluteLoadLines(dstReg, addr) {
-    addr &= 0xffff;
-    if (addr === 0) return [`LDD R${dstReg} R0`];
-    if (addr === 1) return [`LDD R${dstReg} R1`];
-    const ptr = pickScratchPtr(dstReg);
-    return [
-        `LDL R${ptr} ${byteHex(addr & 0xff)}`,
-        `LDH R${ptr} ${byteHex((addr >> 8) & 0xff)}`,
-        `LDD R${dstReg} R${ptr}`
-    ];
-}
-
-function expandMemorySugar(normalized) {
+/** Expand non-spec mnemonics to JZ/JC/JMP/BRA (reduced set only). */
+function expandLineSugar(normalized) {
     if (!normalized || normalized.endsWith(':')) return [normalized];
     const parts = normalized.split(' ');
     const op = parts[0];
+    const target = parts[1];
+
+    if (op === 'JNZ' && target) {
+        const skip = `__jnz_skip_${sugarLabelCounter++}`;
+        return [`JZ ${skip}`, `JMP ${target}`, `${skip}:`];
+    }
+    if (op === 'JNC' && target) {
+        const skip = `__jnc_skip_${sugarLabelCounter++}`;
+        return [`JC ${skip}`, `JMP ${target}`, `${skip}:`];
+    }
+    if (op === 'JS' && target) {
+        return [`BRA B111 ${target}`];
+    }
 
     if (op === 'STO' && parts[1] && isHexAddrToken(parts[2])) {
-        const valReg = parseInt(parts[1].slice(1), 10);
-        const addr = parseInt(parts[2], 16);
-        return expandAbsoluteStoreLines(valReg, addr);
+        rejectDirectMemory('STO', normalized);
     }
     if (op === 'LDD' && parts[1] && isHexAddrToken(parts[2])) {
-        const dstReg = parseInt(parts[1].slice(1), 10);
-        const addr = parseInt(parts[2], 16);
-        return expandAbsoluteLoadLines(dstReg, addr);
+        rejectDirectMemory('LDD', normalized);
     }
+
     return [normalized];
 }
 
@@ -133,14 +113,19 @@ const normalizeInstruction = (line) => {
     // STR Rt, Rs  →  STO Rs Rt  (deprecated alias)
     if (op === 'STR' && p[1] && p[2]) return `STO ${p[2]} ${p[1]}`;
 
-    // LDD Rd, [Rs]  →  LDD Rd Rs
     if (op === 'LDD' && p[2]) {
         const ptr = parseBracketReg(p[2]);
         if (ptr !== null) return `LDD ${p[1]} R${ptr}`;
     }
 
-    if (op === 'ROL' && p.length === 3) return `ROL ${p[1]}`;
-    if (op === 'ROR' && p.length === 3) return `ROR ${p[1]}`;
+    if (op === 'JNZ' || op === 'JNC' || op === 'JS') {
+        return p.join(' ');
+    }
+
+    // Single-operand ROL/ROR sugar → ROL Rd, Rd / ROR Rd, Rd (spec has rd, rs)
+    if ((op === 'ROL' || op === 'ROR') && p.length === 2) {
+        return `${op} ${p[1]} ${p[1]}`;
+    }
 
     return p.join(' ');
 };
@@ -173,6 +158,12 @@ const parseLine = (line, lineNumber, labels) => {
 
     const instruction = instructionSet[op];
     if (!instruction) {
+        if (op === 'JNZ' || op === 'JNC' || op === 'JS') {
+            throw new Error(
+                `"${op}" is not in the reduced instruction set. ` +
+                `It should have been expanded earlier; check assembler sugar.`
+            );
+        }
         throw new Error(`Unknown instruction "${op}" on line ${lineNumber}.`);
     }
 
@@ -190,6 +181,7 @@ const parseLine = (line, lineNumber, labels) => {
 };
 
 function assemble(input) {
+    sugarLabelCounter = 0;
     const rawLines = input.split('\n');
 
     const indexedLines = [];
@@ -198,7 +190,7 @@ function assemble(input) {
         if (!cleaned) return;
         const normalized = normalizeInstruction(cleaned);
         if (!normalized) return;
-        expandMemorySugar(normalized).forEach((expanded) => {
+        expandLineSugar(normalized).forEach((expanded) => {
             indexedLines.push({ normalized: expanded, srcIdx });
         });
     });

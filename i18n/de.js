@@ -93,27 +93,24 @@
       p1: "16-Bit-Wort: Aufbau, Maske und Rekombination (LDH, AND, OR, NOT)",
       p2: "Gesetzte Bits in einem Byte zählen (ROL-Schleife, JC, JNZ)",
       p3: "Maximum finden und Vorzeichen prüfen (BRA, JNC, JS)",
-      p4: "Indirekter Speicherzugriff (STO [Rs], Rt / LDD Rd, [Rs])",
-      p5: "Alias-Testsuite (alle 16 Aliase)"
+      p4: "Zeigerbasierter Speicher (STO [Rs], Rt / LDD)",
+      p5: "Alias-Testsuite (16 #DEF-Aliase + STR)"
     },
     instrDesc: {
       NOT: "Bitweises NOT des Quellregisters ins Zielregister.",
       XOR: "Bitweises XOR von zwei Registern ins Zielregister.",
       OR: "Bitweises OR von zwei Registern ins Zielregister.",
       AND: "Bitweises AND von zwei Registern ins Zielregister.",
-      ROL: "Links rotation um ein Bit (MSB → LSB, MSB → CF).",
-      ROR: "Rechts rotation um ein Bit (LSB → MSB, LSB → CF).",
+      ROL: "Linksrotation durch Carry: rd = (rs[14:0], CF); MSB von rs → CF.",
+      ROR: "Rechtsrotation durch Carry: rd = (CF, rs[15:1]); LSB von rs → CF.",
       SBB: "Subtraktion mit Borrow: Rd = Rs - Rt - CF.",
       ADC: "Addition mit Carry: Rd = Rs + Rt + CF.",
       LDL: "Niederwertiges Byte / 16-Bit-Konstante in Register laden.",
       LDH: "Hochwertiges Byte in Register laden (niederwertiges erhalten).",
-      STO: "Rt in Benutzerspeicher an Adresse in Rs speichern: STO [Rs], Rt.",
-      LDD: "Rd aus Benutzerspeicher an Adresse in Rs laden: LDD Rd, [Rs].",
+      STO: "Rt in Speicher an Adresse Rs: STO [Rs], Rt.",
+      LDD: "Rd aus Speicher an Adresse Rs: LDD Rd, [Rs].",
       JZ: "Sprung wenn Nullflag gesetzt (ZF=1).",
-      JNZ: "Sprung wenn Nullflag gelöscht (ZF=0).",
       JC: "Sprung wenn Übertragsflag gesetzt (CF=1).",
-      JNC: "Sprung wenn Übertragsflag gelöscht (CF=0).",
-      JS: "Sprung wenn Vorzeichenflag gesetzt (NF=1).",
       JMP: "Unbedingter absoluter Sprung.",
       BRA: "Bedingter Sprung. B000=immer, B100=Z, B101=C, B110=V, B111=N.",
       HLT: "Programm anhalten."
@@ -123,6 +120,8 @@
       "Compare / Test": "Vergleich / Test",
       "Register Operations": "Registeroperationen",
       "Bit / Shift": "Bit / Shift",
+      "Assembler sugar": "Assembler-Zucker",
+      "Memory": "Speicher",
       "General": "Allgemein"
     },
     aliasDesc: {

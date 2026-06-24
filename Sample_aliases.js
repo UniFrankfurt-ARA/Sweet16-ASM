@@ -7,7 +7,7 @@ window.sampleAliases = [
 
     {
         name:       "CLR_C",
-        def:        "#DEF CLR_C = ROR R0;",
+        def:        "#DEF CLR_C = ROR R0, R0;",
         use:        "CLR_C",
         flags:      "CF → 0",
         description:
@@ -17,7 +17,7 @@ window.sampleAliases = [
     },
     {
         name:       "SET_C",
-        def:        "#DEF SET_C = ROR R1;",
+        def:        "#DEF SET_C = ROR R1, R1;",
         use:        "SET_C",
         flags:      "CF → 1 (ZF/NF/VF depend on previous CF)",
         description:
@@ -67,6 +67,37 @@ window.sampleAliases = [
             "Bit 15 = 1 → NF = 1.  Result 0xFFFF ≠ 0 → ZF = 0. " +
             "Write to R0 is discarded (R0 stays 0). No user register is touched.",
         category:   "Flag Management"
+    },
+
+    // ── ASSEMBLER SUGAR (expanded before assembly; not hardware opcodes) ─────
+
+    {
+        name:       "JNZ",
+        def:        "(assembler expands to JZ skip / JMP target / skip:)",
+        use:        "JNZ loop",
+        flags:      "uses ZF",
+        description:
+            "Jump if Zero flag is clear (ZF=0). Not in the reduced hardware ISA — the assembler " +
+            "expands each JNZ to JZ + JMP. Prefer JZ/JMP in hand-written machine programs.",
+        category:   "Assembler sugar"
+    },
+    {
+        name:       "JNC",
+        def:        "(assembler expands to JC skip / JMP target / skip:)",
+        use:        "JNC next",
+        flags:      "uses CF",
+        description:
+            "Jump if Carry flag is clear (CF=0). Assembler sugar only; hardware has JC and BRA B101.",
+        category:   "Assembler sugar"
+    },
+    {
+        name:       "JS",
+        def:        "(assembler expands to BRA B111 target)",
+        use:        "JS negative",
+        flags:      "uses NF",
+        description:
+            "Jump if Negative flag is set (NF=1). Assembler sugar only; hardware has BRA B111.",
+        category:   "Assembler sugar"
     },
 
     // ── MEMORY (syntax sugar) ───────────────────────────────────────────────────
@@ -183,7 +214,7 @@ window.sampleAliases = [
 
     {
         name:       "SHL",
-        def:        "#DEF SHL = ROL R6;",
+        def:        "#DEF SHL = ROL R6, R6;",
         use:        "CLR_C\nSHL",
         flags:      "CF ← old bit 15,  NF, ZF updated",
         description:
@@ -195,7 +226,7 @@ window.sampleAliases = [
     },
     {
         name:       "SHR",
-        def:        "#DEF SHR = ROR R6;",
+        def:        "#DEF SHR = ROR R6, R6;",
         use:        "CLR_C\nSHR",
         flags:      "CF ← old bit 0,  NF, ZF updated",
         description:

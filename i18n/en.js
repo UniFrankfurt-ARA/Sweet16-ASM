@@ -93,16 +93,16 @@
       p1: "16-bit word: build, mask and recombine (LDH, AND, OR, NOT)",
       p2: "Count set bits in a byte (ROL loop, JC, JNZ)",
       p3: "Find max and check sign (BRA, JNC, JS)",
-      p4: "Indirect memory (STO [Rs], Rt / LDD Rd, [Rs])",
-      p5: "Alias test suite (all 16 aliases)"
+      p4: "Pointer-based memory copy (STO [Rs], Rt / LDD)",
+      p5: "Alias test suite (16 #DEF aliases + STR)"
     },
     instrDesc: {
       NOT: "Bitwise NOT of source register into destination.",
       XOR: "Bitwise XOR of two registers into destination.",
       OR: "Bitwise OR of two registers into destination.",
       AND: "Bitwise AND of two registers into destination.",
-      ROL: "Rotate left by one bit (MSB → LSB, MSB → CF).",
-      ROR: "Rotate right by one bit (LSB → MSB, LSB → CF).",
+      ROL: "Rotate left through carry: rd = (rs[14:0], CF); MSB of rs → CF.",
+      ROR: "Rotate right through carry: rd = (CF, rs[15:1]); LSB of rs → CF.",
       SBB: "Subtract with borrow: Rd = Rs - Rt - CF.",
       ADC: "Add with carry: Rd = Rs + Rt + CF.",
       LDL: "Load low byte / 16-bit constant into register.",
@@ -110,10 +110,7 @@
       STO: "Store Rt to user memory at address in Rs: STO [Rs], Rt.",
       LDD: "Load Rd from user memory at address in Rs: LDD Rd, [Rs].",
       JZ: "Jump if Zero flag is set (ZF=1).",
-      JNZ: "Jump if Zero flag is clear (ZF=0).",
       JC: "Jump if Carry flag is set (CF=1).",
-      JNC: "Jump if Carry flag is clear (CF=0).",
-      JS: "Jump if Sign/Negative flag is set (NF=1).",
       JMP: "Unconditional absolute jump.",
       BRA: "Branch conditional. B000=always, B100=Z, B101=C, B110=V, B111=N.",
       HLT: "Halt execution."
@@ -123,6 +120,8 @@
       "Compare / Test": "Compare / Test",
       "Register Operations": "Register Operations",
       "Bit / Shift": "Bit / Shift",
+      "Assembler sugar": "Assembler sugar",
+      "Memory": "Memory",
       "General": "General"
     },
     aliasDesc: {},
